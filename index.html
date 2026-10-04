@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Temporary Mail</title>
+<meta name="theme-color" content="#3B5BFF">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#E9EEF8;--card:#fff;--ink:#14182A;--mute:#5E6684;--acc:#3B5BFF;--accink:#fff;--ok:#1F8F6B;--bad:#C93C34;--line:#CBD3EA}
+@media(prefers-color-scheme:dark){:root{--bg:#10131C;--card:#1A1F2E;--ink:#EEF1FB;--mute:#9BA3C2;--acc:#7C93FF;--accink:#0E1220;--ok:#4FD1A1;--bad:#FF7A72;--line:#2D3452}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+main{max-width:600px;margin:0 auto;padding:18px 16px 48px}
+h1{font-size:22px;font-weight:800;margin:0}
+h2{font-size:16px;margin:26px 0 8px;display:flex;justify-content:space-between;align-items:center}
+.sub{margin:2px 0 16px;color:var(--mute);font-size:14px}
+.tag{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px 18px 18px;position:relative}
+.addr{font-weight:800;font-size:clamp(19px,5.6vw,27px);line-height:1.25;word-break:break-all;min-height:68px;margin:0}
+.addr small{color:var(--mute);font-weight:400;font-size:.62em}
+.sep{border-top:2px dashed var(--line);margin:12px 0 14px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+button,.btn{font:600 15px system-ui,sans-serif;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--ink);padding:12px 14px;cursor:pointer;flex:1 1 auto;text-align:center}
+button:focus-visible,input:focus-visible,.msg:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+button:disabled{opacity:.5}
+.pri{background:var(--acc);color:var(--accink);border-color:var(--acc)}
+.ok{color:var(--ok);border-color:var(--ok)}.bad{color:var(--bad);border-color:var(--bad)}
+.status{font-size:13px;color:var(--mute);display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);animation:p 1.6s infinite}
+@keyframes p{50%{opacity:.3}}@media(prefers-reduced-motion:reduce){.dot{animation:none}}
+.msg{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
+.msg.new{border-left:4px solid var(--acc)}
+.msg b{display:block;word-break:break-word}.msg span{color:var(--mute);font-size:13px}
+.chip{display:inline-block;margin:6px 6px 0 0;padding:4px 10px;border-radius:99px;background:var(--acc);color:var(--accink);font-weight:700;font-size:14px;border:0;flex:0 0 auto;cursor:pointer}
+.row{display:flex;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin-bottom:8px}
+.row span{flex:1;word-break:break-all;font-size:14px;font-weight:600}.row button{flex:0 0 auto;padding:6px 10px;font-size:13px}
+.empty,.note{color:var(--mute);font-size:14px}
+iframe{width:100%;height:60vh;border:1px solid var(--line);border-radius:12px;background:#fff}
+pre{white-space:pre-wrap;word-break:break-word;font:inherit;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+#err{color:var(--bad);font-size:14px;margin-top:10px}
+.hide{display:none}
+</style>
+</head>
+<body>
+<main>
+<div id="home">
+  <h1>Temporary Mail</h1>
+  <p class="sub">A fresh inbox in one tap. No Gmail or sign-up needed.</p>
+  <div class="tag">
+    <p class="addr" id="addr" aria-live="polite">Creating your address...</p>
+    <div class="status"><i class="dot"></i><span id="stat">Connecting</span></div>
+    <div class="sep"></div>
+    <div class="actions"><button class="pri" id="copy" disabled>Copy</button><button id="refresh" disabled>Refresh</button></div>
+    <div class="actions"><button class="ok" id="keep" disabled>Keep</button><button class="bad" id="del" disabled>Delete and make new</button></div>
+  </div>
+  <p id="err" role="alert"></p>
+  <h2>Inbox <button id="notif" style="flex:0 0 auto;padding:6px 10px;font-size:13px">Turn on alerts</button></h2>
+  <div id="inbox"><p class="empty">Waiting for mail. New messages appear here within a few seconds.</p></div>
+  <h2>Kept addresses</h2>
+  <div id="kept"><p class="empty">Nothing kept yet. Tap Keep to save the current address and open a new one.</p></div>
+  <p class="note"><span id="count">0</span> addresses created on this device. None repeat.</p>
+  <p class="note">Addresses end in a temporary domain, not @gmail.com. Some sites block these domains. Anyone who guesses an address can read its mail, so never use one for anything sensitive.</p>
+</div>
+<div id="view" class="hide">
+  <button id="back" style="width:auto;margin-bottom:12px">Back to inbox</button>
+  <h1 id="vsub" style="font-size:19px;word-break:break-word"></h1>
+  <p class="sub" id="vfrom"></p>
+  <div id="codes"></div>
+  <div id="body" style="margin-top:12px"></div>
+</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const API="https://api.mail.tm";
+const FIRST=["nova","kairo","zane","luna","ezra","mika","indie","rio","atlas","sage","juno","remy","lexi","kai","nico","aria","milo","skye","orion","vera","theo","cleo","dax","faye","knox","lyra","mavi","nash","opal","pax","quin","rhea","soren","tess","uma","vance","wren","yuki","zeke","ayla","bram","cass","dev","elio","finn","gia","hugo","isla","jett","koa"];
+const LAST=["reyes","cruz","santos","lim","tan","navarro","vega","park","kim","rivera","morales","ocampo","bautista","lopez","silva","moreno","cortez","delgado","aquino","villanueva","flores","mendoza","castro","ramos","soriano","alba","north","frost","lake","hale","pike","wilde","stone","vale","ford","quill","ash","reed","blake","moss"];
+const rnd=n=>{const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%n};
+const pick=a=>a[rnd(a.length)];
+const S={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let accounts=S.get("accounts",[]); // {address,password,id,token,kept}
+let used=new Set(S.get("used",[]));
+let cur=null, seen=new Set(), busy=false, domains=null;
+const save=()=>S.set("accounts",accounts);
+
+async function api(path,opt={},token){
+  const r=await fetch(API+path,{...opt,headers:{"Content-Type":"application/json",...(token?{Authorization:"Bearer "+token}:{})}});
+  if(!r.ok){const e=new Error("HTTP "+r.status);e.status=r.status;throw e}
+  return r.status===204?null:r.json();
+}
+const err=m=>$("err").textContent=m||"";
+const pw=()=>Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>"abcdefghijkmnpqrstuvwxyz23456789"[b%32]).join("");
+
+async function login(a){const t=await api("/token",{method:"POST",body:JSON.stringify({address:a.address,password:a.password})});a.token=t.token;a.id=t.id;save()}
+
+async function createAccount(){
+  if(!domains){const d=await api("/domains");domains=d["hydra:member"].filter(x=>x.isActive).map(x=>x.domain);if(!domains.length)throw new Error("No domains")}
+  for(let i=0;i<6;i++){
+    let local;do{local=pick(FIRST)+"."+pick(LAST)+(10+rnd(99990))}while(used.has(local));
+    const address=local+"@"+pick(domains), password=pw();
+    try{
+      await api("/accounts",{method:"POST",body:JSON.stringify({address,password})});
+      used.add(local);S.set("used",[...used]);
+      const a={address,password,kept:false};await login(a);return a;
+    }catch(e){if(e.status!==422)throw e}
+  }
+  throw new Error("Could not find a free address");
+}
+
+function setBusy(b){busy=b;["copy","refresh","keep","del"].forEach(i=>$(i).disabled=b||!cur)}
+async function newAddress(){
+  setBusy(true);err();$("addr").textContent="Creating your address...";$("stat").textContent="Connecting";
+  try{const a=await createAccount();accounts.unshift(a);save();select(a)}
+  catch(e){err("Couldn't create an address ("+e.message+"). Check your connection and tap Refresh.");cur=null;$("addr").textContent="No address yet";$("refresh").disabled=false;$("refresh").textContent="Try again";busy=false;return}
+  $("refresh").textContent="Refresh";setBusy(false);
+}
+function select(a){cur=a;seen=new Set();const [u,d]=a.address.split("@");$("addr").innerHTML="";$("addr").append(u);const s=document.createElement("small");s.textContent="@"+d;$("addr").append(s);$("inbox").innerHTML='<p class="empty">Waiting for mail. New messages appear here within a few seconds.</p>';renderKept();$("count").textContent=used.size;poll(true)}
+
+function renderKept(){
+  const k=$("kept");const list=accounts.filter(a=>a.kept);k.innerHTML="";
+  if(!list.length){k.innerHTML='<p class="empty">Nothing kept yet. Tap Keep to save the current address and open a new one.</p>';return}
+  list.forEach(a=>{const r=document.createElement("div");r.className="row";const s=document.createElement("span");s.textContent=a.address;
+    const o=document.createElement("button");o.textContent="Open";o.onclick=()=>{select(a);window.scrollTo(0,0)};
+    const x=document.createElement("button");x.textContent="Delete";x.onclick=()=>remove(a);r.append(s,o,x);k.append(r)});
+}
+async function remove(a){
+  try{if(!a.token)await login(a);await api("/accounts/"+a.id,{method:"DELETE"},a.token)}catch(e){if(e.status!==404&&e.status!==401){err("Couldn't delete it right now. Try again.");return}}
+  accounts=accounts.filter(z=>z!==a);save();if(a===cur){cur=null;await newAddress()}else renderKept();
+}
+
+function ago(s){return new Date(s).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}
+async function poll(first){
+  if(!cur||(document.hidden&&!first))return;
+  try{
+    let res;
+    try{res=await api("/messages",{},cur.token)}catch(e){if(e.status===401){await login(cur);res=await api("/messages",{},cur.token)}else throw e}
+    const msgs=res["hydra:member"];$("stat").textContent="Live. Checking every 5 seconds";err();
+    const fresh=msgs.filter(m=>!seen.has(m.id));
+    if(!first&&fresh.length)alert1(fresh[0]);
+    msgs.forEach(m=>seen.add(m.id));
+    const box=$("inbox");if(!msgs.length)return;box.innerHTML="";
+    msgs.forEach(m=>{const d=document.createElement("div");d.className="msg"+(m.seen?"":" new");d.tabIndex=0;d.setAttribute("role","button");
+      const b=document.createElement("b");b.textContent=m.subject||"(no subject)";const f=document.createElement("span");f.textContent=(m.from&&(m.from.name||m.from.address)||"Unknown")+" at "+ago(m.createdAt);
+      const i=document.createElement("div");i.className="note";i.textContent=m.intro||"";d.append(b,f,i);
+      const go=()=>open(m.id);d.onclick=go;d.onkeydown=e=>{if(e.key==="Enter")go()};box.append(d)});
+  }catch(e){$("stat").textContent="Reconnecting";if(e.status===429)$("stat").textContent="Slowing down, retrying"}
+}
+function alert1(m){
+  if(navigator.vibrate)navigator.vibrate(150);
+  if("Notification" in window&&Notification.permission==="granted"&&document.hidden){try{new Notification(m.subject||"New mail",{body:(m.intro||"").slice(0,100)})}catch(e){}}
+}
+
+async function open(id){
+  try{
+    const m=await api("/messages/"+id,{},cur.token);
+    $("home").classList.add("hide");$("view").classList.remove("hide");window.scrollTo(0,0);
+    $("vsub").textContent=m.subject||"(no subject)";$("vfrom").textContent="From "+(m.from&&m.from.address||"unknown");
+    const text=m.text||"";const codes=[...new Set(((m.subject||"")+" "+text).match(/\b\d{4,8}\b/g)||[])].slice(0,4);
+    $("codes").innerHTML="";codes.forEach(c=>{const b=document.createElement("button");b.className="chip";b.textContent="Copy code "+c;b.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(c);b.textContent="Copied"};$("codes").append(b)});
+    const body=$("body");body.innerHTML="";
+    const html=Array.isArray(m.html)?m.html.join(""):m.html;
+    if(html){const f=document.createElement("iframe");f.setAttribute("sandbox","allow-popups allow-popups-to-escape-sandbox");f.srcdoc=html;body.append(f)}
+    else{const p=document.createElement("pre");p.textContent=text||"(empty message)";body.append(p)}
+    api("/messages/"+id,{method:"PATCH",body:JSON.stringify({seen:true})},cur.token).catch(()=>{});
+  }catch(e){err("Couldn't open that message.")}
+}
+
+$("back").onclick=()=>{$("view").classList.add("hide");$("home").classList.remove("hide");poll(true)};
+$("copy").onclick=async()=>{try{await navigator.clipboard.writeText(cur.address)}catch(e){const i=document.createElement("input");i.value=cur.address;document.body.append(i);i.select();document.execCommand("copy");i.remove()}$("copy").textContent="Copied";setTimeout(()=>$("copy").textContent="Copy",1200)};
+$("refresh").onclick=()=>cur?poll(true):newAddress();
+$("keep").onclick=()=>{cur.kept=true;save();renderKept();newAddress()};
+$("del").onclick=()=>remove(cur);
+$("notif").onclick=async()=>{if(!("Notification" in window)){$("notif").textContent="Not supported";return}const p=await Notification.requestPermission();$("notif").textContent=p==="granted"?"Alerts on":"Alerts blocked"};
+if("Notification" in window&&Notification.permission==="granted")$("notif").textContent="Alerts on";
+setInterval(()=>poll(false),5000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)poll(true)});
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+
+// Start: reopen the most recent account, else create one. Discard unkept leftovers from past sessions.
+(async()=>{
+  renderKept();$("count").textContent=used.size;
+  const last=accounts[0];
+  if(last){try{if(!last.token)await login(last);select(last);setBusy(false);return}catch(e){accounts=accounts.filter(a=>a!==last);save()}}
+  newAddress();
+})();
+</script>
+</body>
+</html>
